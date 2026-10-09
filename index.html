@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>편의점 타이쿤: 알바에서 사장까지</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        jua: ['Jua', 'sans-serif'],
+                        sans: ['Noto Sans KR', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Noto Sans KR', sans-serif;
+            background: #f8fafc;
+            color: #0f172a;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .font-jua {
+            font-family: 'Jua', sans-serif;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-numpad {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 2px 0 #94a3b8;
+            transition: all 0.08s ease;
+        }
+        .btn-numpad:active {
+            transform: translateY(2px);
+            box-shadow: 0 0 0 #94a3b8;
+        }
+
+        /* Customer Entrance Animation */
+        @keyframes walkIn {
+            0% { transform: translateX(180px) scale(0.8); opacity: 0; }
+            100% { transform: translateX(0) scale(1); opacity: 1; }
+        }
+        .animate-customer-enter {
+            animation: walkIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        @keyframes doorSlide {
+            0%, 100% { transform: scaleX(1); }
+            50% { transform: scaleX(0.2); }
+        }
+        .animate-door {
+            animation: doorSlide 0.8s ease-in-out;
+        }
+
+        @keyframes floatText {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-40px) scale(1.15); }
+        }
+        .floating-text {
+            position: absolute;
+            animation: floatText 0.8s forwards;
+            pointer-events: none;
+            font-weight: 900;
+            z-index: 70;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col justify-between overflow-hidden bg-slate-100 text-slate-800">
+
+    <!-- Top Header Navigation Bar -->
+    <header class="h-14 w-full bg-white/95 backdrop-blur-md px-4 flex justify-between items-center border-b border-slate-200 shadow-sm shrink-0 z-30">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center text-lg shadow-sm">
+                🏪
+            </div>
+            <div>
+                <h1 class="text-base font-jua text-slate-800 flex items-center gap-2">
+                    <span id="header-store-name">GS24 밝은점</span>
+                    <span id="rank-badge" class="text-[11px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold border border-blue-300">1일차: 아르바이트</span>
+                </h1>
+                <p class="text-[11px] text-slate-500">담당: <span id="header-char-name" class="font-bold text-slate-700">김알바</span> | 근무: <span id="day-display" class="text-emerald-600 font-bold">1일차</span></p>
+            </div>
+        </div>
+
+        <!-- Customer Progress & Cash -->
+        <div class="flex items-center gap-4">
+            <div class="flex flex-col items-end">
+                <span class="text-[10px] text-slate-400 font-bold">오늘 손님 현황</span>
+                <div class="flex items-center gap-1.5 font-jua text-xs text-slate-700">
+                    <span id="customer-count-display" class="text-amber-600 font-bold">0 / 5 명</span>
+                    <div class="w-16 h-2 bg-slate-200 rounded-full overflow-hidden border border-slate-300">
+                        <div id="customer-progress-bar" class="h-full bg-amber-500 transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col items-end min-w-[100px]">
+                <span class="text-[10px] text-slate-400 font-bold">보유 자금</span>
+                <span id="cash-display" class="text-base font-jua text-emerald-600">10,000 원</span>
+            </div>
+
+            <div class="flex gap-1">
+                <button onclick="toggleAudio()" class="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition">
+                    <i class="fas fa-volume-up text-sm" id="audio-icon"></i>
+                </button>
+                <button onclick="resetGamePrompt()" class="p-2 rounded-lg bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 transition" title="처음부터 다시">
+                    <i class="fas fa-rotate-left text-sm"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Game Viewport (Fixed 100vh Fits) -->
+    <main class="flex-1 w-full max-w-7xl mx-auto p-2 sm:p-3 flex flex-col justify-between overflow-hidden relative">
+
+        <!-- ===================================================================
+             1. CHARACTER & STORE CUSTOMIZATION SCREEN
+        =================================================================== -->
+        <section id="customization-screen" class="w-full h-full glass-panel rounded-2xl p-4 sm:p-6 shadow-xl flex flex-col justify-between my-auto border border-white">
+            <div class="text-center">
+                <h2 class="text-2xl sm:text-3xl font-jua text-amber-500 mb-1">🏪 밝은 2D 편의점 타이쿤</h2>
+                <p class="text-slate-500 text-xs sm:text-sm">나만의 캐릭터와 편의점을 꾸미고, 덧셈 계산과 재고 정리로 알바에서 사장까지 승진하세요!</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center my-auto">
+                <!-- Avatar Canvas Preview -->
+                <div class="md:col-span-5 flex flex-col items-center justify-center bg-amber-50/50 rounded-xl p-3 border border-amber-200">
+                    <span class="text-xs font-bold text-slate-500 mb-1">2D 캐릭터 미리보기</span>
+                    <canvas id="avatarCanvas" width="160" height="190" class="bg-white rounded-xl border border-slate-200 shadow-sm"></canvas>
+                    <span class="mt-2 text-xs font-jua px-3 py-0.5 bg-blue-100 text-blue-700 rounded-full border border-blue-200">1~5일차: 아르바이트 시작</span>
+                </div>
+
+                <!-- Customization Inputs -->
+                <div class="md:col-span-7 space-y-3">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 mb-0.5">캐릭터 이름</label>
+                            <input type="text" id="input-char-name" value="김알바" maxlength="8" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-jua focus:outline-none focus:border-amber-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 mb-0.5">편의점 이름</label>
+                            <input type="text" id="input-store-name" value="GS24 밝은점" maxlength="12" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-jua focus:outline-none focus:border-amber-500">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 mb-0.5">헤어 스타일</label>
+                            <select id="select-hair-style" onchange="updateAvatarPreview()" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs">
+                                <option value="short">단발/숏컷</option>
+                                <option value="spiky">스파이키</option>
+                                <option value="long">긴머리</option>
+                                <option value="cap">모자 착용</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 mb-0.5">머리 색상</label>
+                            <input type="color" id="color-hair" value="#3b2314" onchange="updateAvatarPreview()" class="w-full h-7 bg-white rounded border border-slate-300 cursor-pointer">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 mb-0.5">피부 톤</label>
+                            <input type="color" id="color-skin" value="#ffdbac" onchange="updateAvatarPreview()" class="w-full h-7 bg-white rounded border border-slate-300 cursor-pointer">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 mb-0.5">상의 색상</label>
+                            <input type="color" id="color-shirt" value="#2563eb" onchange="updateAvatarPreview()" class="w-full h-7 bg-white rounded border border-slate-300 cursor-pointer">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 mb-0.5">앞치마 색상</label>
+                            <input type="color" id="color-apron" value="#10b981" onchange="updateAvatarPreview()" class="w-full h-7 bg-white rounded border border-slate-300 cursor-pointer">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 mb-0.5">액세서리</label>
+                            <select id="select-glasses" onchange="updateAvatarPreview()" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs">
+                                <option value="none">없음</option>
+                                <option value="glasses">안경</option>
+                                <option value="sunglasses">선글라스</option>
+                                <option value="mask">마스크</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="startGame()" class="w-full py-3 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-jua text-lg rounded-xl shadow-md transition transform active:scale-98">
+                🏪 편의점 1일차 출근하기!
+            </button>
+        </section>
+
+
+        <!-- ===================================================================
+             2. BRIGHT 2D CONVENIENCE STORE MAIN VIEW
+        =================================================================== -->
+        <section id="game-screen" class="hidden h-full flex-col justify-between gap-2">
+
+            <!-- Bright 2D Convenience Store Canvas & Scene Header -->
+            <div id="store-scene" class="h-44 sm:h-52 w-full bg-gradient-to-b from-sky-100 via-slate-50 to-amber-50 rounded-2xl border-2 border-slate-300 p-3 shadow-inner relative overflow-hidden flex justify-between items-end shrink-0">
+                
+                <!-- LED Store Ceiling Lights & Banner -->
+                <div class="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-amber-300 via-white to-amber-300 border-b border-amber-400 shadow-sm flex items-center justify-around">
+                    <div class="w-12 h-1 bg-amber-400 rounded-full"></div>
+                    <div class="w-12 h-1 bg-amber-400 rounded-full"></div>
+                    <div class="w-12 h-1 bg-amber-400 rounded-full"></div>
+                </div>
+
+                <!-- 2D Bright Store Background Shelves & Coolers -->
+                <div class="absolute top-5 left-4 right-4 flex justify-between opacity-80 pointer-events-none">
+                    <!-- Shelf 1 -->
+                    <div class="w-24 h-24 bg-sky-100 rounded-lg border border-sky-300 p-1 flex flex-col justify-around">
+                        <div class="text-[10px] text-sky-700 font-bold text-center">🥤 음료 냉장고</div>
+                        <div class="flex justify-around text-base">🥤 ☕ 🧃</div>
+                        <div class="flex justify-around text-base">🍼 🍺 🥛</div>
+                    </div>
+                    <!-- Shelf 2 -->
+                    <div class="w-32 h-24 bg-emerald-100 rounded-lg border border-emerald-300 p-1 flex flex-col justify-around">
+                        <div class="text-[10px] text-emerald-700 font-bold text-center">🍱 신선 스낵 매대</div>
+                        <div class="flex justify-around text-base">🍱 🍙 🥪</div>
+                        <div class="flex justify-around text-base">🍜 🥔 🍦</div>
+                    </div>
+                </div>
+
+                <!-- Entrance Door & Customer Character -->
+                <div class="flex items-end gap-3 z-10">
+                    <!-- Automatic Glass Sliding Door -->
+                    <div id="store-door" class="w-14 h-28 bg-cyan-100/80 border-2 border-cyan-400 rounded-t-lg flex items-center justify-center relative overflow-hidden shadow-sm">
+                        <div class="w-1 h-16 bg-cyan-400 rounded-full"></div>
+                        <span class="absolute top-1 text-[8px] font-bold text-cyan-800">자동문</span>
+                    </div>
+
+                    <!-- Customer Character Avatar & Dialogue -->
+                    <div id="customer-avatar-container" class="flex items-end gap-2 animate-customer-enter cursor-pointer" onclick="openTransactionModal()">
+                        <div id="customer-emoji" class="text-5xl sm:text-6xl drop-shadow-md transition hover:scale-110">👤</div>
+                        <!-- Order Bubble -->
+                        <div class="bg-white px-3 py-2 rounded-2xl border-2 border-amber-400 shadow-lg relative -top-6 hover:bg-amber-50">
+                            <div class="text-[9px] text-amber-600 font-bold">손님 주문 (클릭 시 거래창 열림)</div>
+                            <div id="customer-dialogue" class="font-jua text-slate-800 text-xs sm:text-sm text-amber-600 flex items-center gap-1">
+                                <span>"안녕하세요! 정산 부탁해요."</span>
+                                <span class="bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">계산하기</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Player Avatar behind Counter -->
+                <div class="flex items-end gap-2 z-10">
+                    <div class="bg-slate-800 px-3 py-1.5 rounded-t-xl text-white font-jua text-xs border-t-2 border-amber-400 flex items-center gap-1 shadow">
+                        <span>📟 POS 카운터</span>
+                    </div>
+                    <canvas id="miniPlayerCanvas" width="60" height="75" class="bg-white/70 rounded-t-lg border border-slate-300 shadow-sm"></canvas>
+                </div>
+
+                <!-- Trouble Event Overlay Banner -->
+                <div id="trouble-banner" class="hidden absolute inset-0 bg-red-900/80 backdrop-blur-sm z-20 flex items-center justify-between px-4 text-white">
+                    <div class="flex items-center gap-2">
+                        <span class="text-3xl">🤬</span>
+                        <div>
+                            <h4 class="font-jua text-sm text-amber-300">⚠️ 진상 손님 등장!</h4>
+                            <p class="text-[11px] text-slate-200">매장 바닥에 음료를 쏟았습니다. 어서 청소하세요!</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="resolveTrouble('clean')" class="px-3 py-1 bg-amber-400 hover:bg-amber-300 text-slate-900 font-jua text-xs rounded-lg shadow">
+                            🧹 직접 청소하기
+                        </button>
+                        <button onclick="resolveTrouble('staff')" id="btn-trouble-staff" class="px-3 py-1 bg-blue-500 hover:bg-blue-400 text-white font-jua text-xs rounded-lg shadow">
+                            🤖 알바 지시
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SHELF PRODUCT GRID & ITEM BASKET (Quick Actions) -->
+            <div class="flex-1 glass-panel rounded-2xl p-2.5 flex flex-col justify-between overflow-hidden">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="font-jua text-xs text-slate-700 flex items-center gap-1">
+                        🛒 진열대 (클릭하여 손님이 원하는 물건을 바구니에 담으세요)
+                    </span>
+                    <button onclick="openTransactionModal()" class="px-3 py-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-jua text-xs rounded-lg shadow flex items-center gap-1">
+                        💳 손님 계산 / 거래창 열기
+                    </button>
+                </div>
+
+                <!-- 8 Interactive Shelf Items -->
+                <div id="shelf-grid" class="grid grid-cols-4 sm:grid-cols-8 gap-1.5 my-auto">
+                    <!-- JS Injected -->
+                </div>
+
+                <!-- Basket Summary Bar -->
+                <div class="bg-amber-50/90 rounded-xl p-2 border border-amber-200 flex justify-between items-center gap-2 mt-1 shrink-0">
+                    <div class="overflow-x-auto flex-1">
+                        <div class="text-[10px] font-bold text-amber-800">현재 담긴 바구니</div>
+                        <div id="basket-items-list" class="flex gap-1 mt-0.5 min-h-[22px] items-center">
+                            <span class="text-[11px] text-slate-400">바구니가 비어 있습니다.</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-1 shrink-0">
+                        <button onclick="clearBasket()" class="px-2 py-1 bg-white hover:bg-slate-100 text-slate-600 text-xs rounded-lg font-jua border border-slate-300">
+                            비우기
+                        </button>
+                        <button onclick="openTransactionModal()" class="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs rounded-lg font-jua shadow">
+                            정산하기
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ===================================================================
+             3. MODAL: TRANSACTION & MATH ADDITION CHECKOUT WINDOW (거래창)
+        =================================================================== -->
+        <div id="transaction-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-3">
+            <div class="bg-white rounded-2xl max-w-lg w-full p-4 sm:p-5 shadow-2xl border border-slate-200 flex flex-col justify-between max-h-[95vh] overflow-y-auto">
+                
+                <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+                    <div class="flex items-center gap-2">
+                        <span id="trans-customer-emoji" class="text-3xl">👤</span>
+                        <div>
+                            <h3 class="font-jua text-base text-slate-800">손님 정산 거래창</h3>
+                            <p id="trans-customer-order-text" class="text-xs text-amber-600 font-jua">"상품 가격을 덧셈하여 정산해 주세요!"</p>
+                        </div>
+                    </div>
+                    <button onclick="closeTransactionModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                        <i class="fas fa-times text-lg"></i>
+                    </button>
+                </div>
+
+                <!-- MATH ADDITION STEP -->
+                <div class="my-3 bg-slate-900 rounded-xl p-3 text-center text-white shadow-inner border border-slate-700">
+                    <div class="text-[11px] text-amber-400 font-bold mb-1">🧮 [1단계] 덧셈 문제를 계산하여 바구니 총합을 구하세요!</div>
+                    <div id="math-problem-text" class="font-jua text-2xl sm:text-3xl text-emerald-400 tracking-wider">
+                        1,500 + 1,200 = ?
+                    </div>
+                </div>
+
+                <!-- POS Input Display -->
+                <div class="flex gap-2 mb-3">
+                    <div id="pos-input-display" class="flex-1 bg-slate-100 border-2 border-emerald-500 rounded-xl px-3 py-1.5 text-2xl font-jua text-emerald-700 flex items-center justify-end tracking-widest min-h-[44px]">
+                        0
+                    </div>
+                    <button onclick="submitPOSAnswer()" class="px-5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-jua text-lg rounded-xl shadow-md shrink-0 active:scale-95">
+                        결제 완료
+                    </button>
+                </div>
+
+                <!-- Interactive Numpad -->
+                <div class="grid grid-cols-3 gap-1.5 my-auto">
+                    <button onclick="pressPOSNum('1')" class="btn-numpad py-2 rounded-xl font-jua text-xl text-slate-800">1</button>
+                    <button onclick="pressPOSNum('2')" class="btn-numpad py-2 rounded-xl font-jua text-xl text-slate-800">2</button>
+                    <button onclick="pressPOSNum('3')" class="btn-numpad py-2 rounded-xl font-jua text-xl text-slate-800">3</button>
+                    <button onclick="pressPOSNum('4')" class="btn-numpad py-2 rounded-xl font-jua text-xl text-slate-800">4</button>
+                    <button onclick="pressPOSNum('5')" class="btn-numpad py-2 rounded-xl font-jua text-xl text-slate-800">5</button>
+                    <button onclick="pressPOSNum('6')" class="btn-numpad py-2 rounded-xl font-jua text-xl text-slate-800">6</button>
+                    <button onclick="pressPOSNum('7')" class="btn-numpad py-2 rounded-xl font-jua text-xl text-slate-800">7</button>
+                    <button onclick="pressPOSNum('8')" class="btn-numpad py-2 rounded-xl font-jua text-xl text-slate-800">8</button>
+                    <button onclick="pressPOSNum('9')" class="btn-numpad py-2 rounded-xl font-jua text-xl text-slate-800">9</button>
+                    <button onclick="clearPOSNum()" class="btn-numpad py-2 rounded-xl font-jua text-sm text-red-500 bg-red-50">C</button>
+                    <button onclick="pressPOSNum('0')" class="btn-numpad py-2 rounded-xl font-jua text-xl text-slate-800">0</button>
+                    <button onclick="deletePOSNum()" class="btn-numpad py-2 rounded-xl font-jua text-sm text-amber-600 bg-amber-50"><i class="fas fa-backspace"></i></button>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ===================================================================
+             4. MODAL: DAY END SUMMARY & ITEM/STAFF SHOP
+        =================================================================== -->
+        <div id="day-summary-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-3">
+            <div class="bg-white rounded-2xl max-w-2xl w-full p-4 sm:p-5 shadow-2xl border border-slate-200 flex flex-col justify-between max-h-[92vh] overflow-y-auto">
+                
+                <div class="text-center border-b border-slate-200 pb-3">
+                    <span id="summary-day-title" class="text-xl sm:text-2xl font-jua text-amber-500">🎉 1일차 영업 완료!</span>
+                    <p class="text-xs text-slate-500">오늘의 정산 수익을 확인하고 다음 일차 준비를 위한 알바 고용 및 아이템을 구매하세요.</p>
+                </div>
+
+                <!-- Daily Summary Stats -->
+                <div class="grid grid-cols-3 gap-2 my-3 text-center">
+                    <div class="bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                        <span class="text-[10px] text-amber-700 font-bold block">오늘 정산 수익</span>
+                        <span id="summary-today-sales" class="font-jua text-base sm:text-lg text-amber-600">0 원</span>
+                    </div>
+                    <div class="bg-blue-50 p-2.5 rounded-xl border border-blue-200">
+                        <span class="text-[10px] text-blue-700 font-bold block">응대한 손님 수</span>
+                        <span id="summary-today-customers" class="font-jua text-base sm:text-lg text-blue-600">5 명</span>
+                    </div>
+                    <div class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
+                        <span class="text-[10px] text-emerald-700 font-bold block">현재 총 자금</span>
+                        <span id="summary-total-cash" class="font-jua text-base sm:text-lg text-emerald-600">10,000 원</span>
+                    </div>
+                </div>
+
+                <!-- Staff & Item Upgrade Shop -->
+                <div class="space-y-3 my-2">
+                    <div class="text-xs font-jua text-slate-700 flex justify-between items-center">
+                        <span>🤖 알바 고용 & 상점 아이템</span>
+                        <span class="text-[10px] text-slate-400 font-normal">자동화 및 팁 보너스 강화</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <!-- Restocker Staff -->
+                        <div class="p-2 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
+                            <div>
+                                <div class="font-jua text-xs text-slate-800">📦 재고 정리 알바 <span id="staff-lvl-restock" class="text-amber-600">Lv.0</span></div>
+                                <div class="text-[10px] text-slate-500">상품 자동 보충 지원</div>
+                            </div>
+                            <button onclick="hireStaff('restock')" id="btn-modal-restock" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 font-jua text-xs text-white rounded-lg shadow">
+                                <span id="staff-cost-restock">5,000원</span>
+                            </button>
+                        </div>
+
+                        <!-- Cashier Staff -->
+                        <div class="p-2 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
+                            <div>
+                                <div class="font-jua text-xs text-slate-800">💳 POS 정산 알바 <span id="staff-lvl-cashier" class="text-cyan-600">Lv.0</span></div>
+                                <div class="text-[10px] text-slate-500">자동 패시브 수익 생성</div>
+                            </div>
+                            <button onclick="hireStaff('cashier')" id="btn-modal-cashier" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 font-jua text-xs text-white rounded-lg shadow">
+                                <span id="staff-cost-cashier">15,000원</span>
+                            </button>
+                        </div>
+
+                        <!-- Cleaner Staff -->
+                        <div class="p-2 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
+                            <div>
+                                <div class="font-jua text-xs text-slate-800">🧹 청소 전담 알바 <span id="staff-lvl-cleaner" class="text-purple-600">Lv.0</span></div>
+                                <div class="text-[10px] text-slate-500">진상 손님 자동 해결</div>
+                            </div>
+                            <button onclick="hireStaff('cleaner')" id="btn-modal-cleaner" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 font-jua text-xs text-white rounded-lg shadow">
+                                <span id="staff-cost-cleaner">30,000원</span>
+                            </button>
+                        </div>
+
+                        <!-- Barcode Scanner Item -->
+                        <div class="p-2 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
+                            <div>
+                                <div class="font-jua text-xs text-slate-800">🔍 초스피드 스캐너</div>
+                                <div class="text-[10px] text-slate-500">정산 팁 보너스 +20%</div>
+                            </div>
+                            <button onclick="buyItem('scanner')" id="btn-modal-scanner" class="px-3 py-1 bg-amber-500 hover:bg-amber-400 font-jua text-xs text-slate-900 rounded-lg shadow">
+                                10,000원
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Next Day Transition Button -->
+                <button onclick="startNextDay()" class="w-full mt-3 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 font-jua text-lg text-white rounded-xl shadow-lg transition active:scale-98">
+                    🚀 다음 일차 시작하기
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        /* ===================================================================
+           GAME STATE CONFIG
+        =================================================================== */
+        let gameState = {
+            charName: "김알바",
+            storeName: "GS24 밝은점",
+            avatar: {
+                hairStyle: "short",
+                hairColor: "#3b2314",
+                skinColor: "#ffdbac",
+                shirtColor: "#2563eb",
+                apronColor: "#10b981",
+                glasses: "none"
+            },
+            cash: 10000,
+            day: 1,
+            rankIndex: 0, // 0: 알바(1-5일), 1: 정직원(6-10일), 2: 매니저(11-15일), 3: 사장(16일+)
+            combo: 0,
+            
+            // Daily Customer System
+            todayCustomersServed: 0,
+            targetCustomersToday: 5,
+            todayEarnings: 0,
+
+            // Staff & Upgrades
+            staff: { restock: 0, cashier: 0, cleaner: 0 },
+            items: { scanner: false }
+        };
+
+        const CUSTOMER_EMOJIS = ['👨‍💼', '👩‍💼', '👨‍🎓', '👩‍🎓', '🧔', '👵', '👱‍♀️', '👨‍🍳'];
+
+        const STORE_ITEMS = [
+            { id: "ramen", name: "컵라면", price: 1500, emoji: "🍜" },
+            { id: "triangle", name: "삼각김밥", price: 1200, emoji: "🍙" },
+            { id: "soda", name: "탄산음료", price: 1800, emoji: "🥤" },
+            { id: "bento", name: "혜자 도시락", price: 4800, emoji: "🍱" },
+            { id: "coffee", name: "캔커피", price: 1000, emoji: "☕" },
+            { id: "snack", name: "감자칩", price: 2000, emoji: "🥔" },
+            { id: "icecream", name: "아이스크림", price: 1500, emoji: "🍦" },
+            { id: "milk", name: "바나나 우유", price: 1400, emoji: "🍌" }
+        ];
+
+        let currentBasket = [];
+        let currentTargetSum = 0;
+        let posInput = "";
+        let activeTrouble = false;
+        let audioEnabled = true;
+
+        /* ===================================================================
+           AUDIO SYNTHESIZER ENGINE
+        =================================================================== */
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playSound(type) {
+            if (!audioEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'door') {
+                [523.25, 659.25].forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.15);
+                    gain.gain.setValueAtTime(0.2, now + idx * 0.15);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.15 + 0.3);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(now + idx * 0.15); osc.stop(now + idx * 0.15 + 0.3);
+                });
+            } else if (type === 'scan') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(2600, now);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.08);
+            } else if (type === 'cash') {
+                [1046.50, 1318.51, 1567.98].forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+                    gain.gain.setValueAtTime(0.2, now + idx * 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.05 + 0.15);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(now + idx * 0.05); osc.stop(now + idx * 0.05 + 0.15);
+                });
+            } else if (type === 'wrong') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.2);
+            }
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            const icon = document.getElementById('audio-icon');
+            icon.className = audioEnabled ? 'fas fa-volume-up text-sm' : 'fas fa-volume-mute text-sm text-red-500';
+        }
+
+        /* ===================================================================
+           2D CANVAS AVATAR RENDERER
+        =================================================================== */
+        function updateAvatarPreview() {
+            const canvas = document.getElementById('avatarCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            gameState.avatar.hairStyle = document.getElementById('select-hair-style').value;
+            gameState.avatar.hairColor = document.getElementById('color-hair').value;
+            gameState.avatar.skinColor = document.getElementById('color-skin').value;
+            gameState.avatar.shirtColor = document.getElementById('color-shirt').value;
+            gameState.avatar.apronColor = document.getElementById('color-apron').value;
+            gameState.avatar.glasses = document.getElementById('select-glasses').value;
+
+            drawAvatarOnCanvas(ctx, canvas.width, canvas.height);
+
+            const miniCanvas = document.getElementById('miniPlayerCanvas');
+            if (miniCanvas) {
+                const miniCtx = miniCanvas.getContext('2d');
+                drawAvatarOnCanvas(miniCtx, miniCanvas.width, miniCanvas.height);
+            }
+        }
+
+        function drawAvatarOnCanvas(ctx, width, height) {
+            ctx.clearRect(0, 0, width, height);
+            const centerX = width / 2;
+
+            // Shirt Body
+            ctx.fillStyle = gameState.avatar.shirtColor;
+            ctx.beginPath();
+            ctx.ellipse(centerX, height * 0.82, width * 0.28, height * 0.25, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Apron
+            ctx.fillStyle = gameState.avatar.apronColor;
+            ctx.beginPath();
+            ctx.rect(centerX - width * 0.18, height * 0.65, width * 0.36, height * 0.35);
+            ctx.fill();
+
+            // Face
+            ctx.fillStyle = gameState.avatar.skinColor;
+            ctx.beginPath();
+            ctx.arc(centerX, height * 0.4, width * 0.22, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eyes
+            ctx.fillStyle = "#1e293b";
+            ctx.beginPath();
+            ctx.arc(centerX - 7, height * 0.38, 2.5, 0, Math.PI * 2);
+            ctx.arc(centerX + 7, height * 0.38, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Hair
+            ctx.fillStyle = gameState.avatar.hairColor;
+            const style = gameState.avatar.hairStyle;
+
+            if (style === 'short' || style === 'spiky') {
+                ctx.beginPath();
+                ctx.arc(centerX, height * 0.36, width * 0.24, Math.PI, Math.PI * 2);
+                ctx.fill();
+            } else if (style === 'long') {
+                ctx.beginPath();
+                ctx.arc(centerX, height * 0.36, width * 0.24, Math.PI, Math.PI * 2);
+                ctx.rect(centerX - width * 0.24, height * 0.36, width * 0.1, height * 0.3);
+                ctx.rect(centerX + width * 0.14, height * 0.36, width * 0.1, height * 0.3);
+                ctx.fill();
+            } else if (style === 'cap') {
+                ctx.fillStyle = "#ef4444";
+                ctx.beginPath();
+                ctx.arc(centerX, height * 0.34, width * 0.24, Math.PI, Math.PI * 2);
+                ctx.fill();
+                ctx.fillRect(centerX - width * 0.28, height * 0.34, width * 0.38, 5);
+            }
+        }
+
+        /* ===================================================================
+           INIT & CORE FLOW
+        =================================================================== */
+        window.onload = function() {
+            updateAvatarPreview();
+            renderShelves();
+            startPassiveEngine();
+        };
+
+        function startGame() {
+            initAudio();
+
+            const charInput = document.getElementById('input-char-name').value.trim();
+            const storeInput = document.getElementById('input-store-name').value.trim();
+
+            if (charInput) gameState.charName = charInput;
+            if (storeInput) gameState.storeName = storeInput;
+
+            document.getElementById('customization-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            document.getElementById('game-screen').classList.add('flex');
+
+            updateAvatarPreview();
+            startNewDaySession();
+        }
+
+        function resetGamePrompt() {
+            if (confirm("게임 전체를 처음부터 다시 시작하시겠습니까?")) {
+                location.reload();
+            }
+        }
+
+        /* ===================================================================
+           DAY & PROMOTION SYSTEM (5 Days Milestone)
+        =================================================================== */
+        function startNewDaySession() {
+            gameState.todayCustomersServed = 0;
+            gameState.todayEarnings = 0;
+            gameState.targetCustomersToday = 5;
+
+            // Rank calculation
+            if (gameState.day >= 16) {
+                gameState.rankIndex = 3; // 사장님
+            } else if (gameState.day >= 11) {
+                gameState.rankIndex = 2; // 매니저
+            } else if (gameState.day >= 6) {
+                gameState.rankIndex = 1; // 정직원
+            } else {
+                gameState.rankIndex = 0; // 아르바이트
+            }
+
+            if ([6, 11, 16].includes(gameState.day)) {
+                if (typeof confetti === 'function') confetti({ particleCount: 80, spread: 70 });
+                playSound('cash');
+            }
+
+            updateUI();
+            generateNextCustomer();
+        }
+
+        function generateNextCustomer() {
+            if (gameState.todayCustomersServed >= gameState.targetCustomersToday) {
+                triggerDayEndSummary();
+                return;
+            }
+
+            // Customer Entrance Animation
+            playSound('door');
+            const container = document.getElementById('customer-avatar-container');
+            const door = document.getElementById('store-door');
+            
+            door.classList.add('animate-door');
+            container.classList.remove('animate-customer-enter');
+            void container.offsetWidth;
+            container.classList.add('animate-customer-enter');
+
+            setTimeout(() => door.classList.remove('animate-door'), 800);
+
+            const randomEmoji = CUSTOMER_EMOJIS[Math.floor(Math.random() * CUSTOMER_EMOJIS.length)];
+            document.getElementById('customer-emoji').innerText = randomEmoji;
+            document.getElementById('trans-customer-emoji').innerText = randomEmoji;
+
+            // Pick 2 random items for Customer Request
+            currentBasket = [];
+            const item1 = STORE_ITEMS[Math.floor(Math.random() * STORE_ITEMS.length)];
+            const item2 = STORE_ITEMS[Math.floor(Math.random() * STORE_ITEMS.length)];
+            
+            currentBasket.push(item1, item2);
+            currentTargetSum = item1.price + item2.price;
+
+            const orderStr = `${item1.name}(${item1.price.toLocaleString()}원) + ${item2.name}(${item2.price.toLocaleString()}원)`;
+            document.getElementById('customer-dialogue').innerText = `"${orderStr} 정산 해주세요!"`;
+            document.getElementById('trans-customer-order-text').innerText = `주문: ${orderStr}`;
+            document.getElementById('math-problem-text').innerText = `${item1.price.toLocaleString()} + ${item2.price.toLocaleString()} = ?`;
+
+            renderBasketUI();
+            posInput = "";
+            updatePOSDisplay();
+
+            // Random Trouble Event
+            if (Math.random() < 0.2 && !activeTrouble) {
+                setTimeout(triggerTroubleEvent, 1000);
+            }
+        }
+
+        /* ===================================================================
+           TRANSACTION MODAL & MATH POS CHECKOUT
+        =================================================================== */
+        function openTransactionModal() {
+            initAudio();
+            document.getElementById('transaction-modal').classList.remove('hidden');
+        }
+
+        function closeTransactionModal() {
+            document.getElementById('transaction-modal').classList.add('hidden');
+        }
+
+        function renderShelves() {
+            const grid = document.getElementById('shelf-grid');
+            grid.innerHTML = "";
+
+            STORE_ITEMS.forEach(item => {
+                const btn = document.createElement('button');
+                btn.className = "p-1.5 bg-white border border-slate-200 rounded-xl flex flex-col items-center justify-center text-center shadow-sm hover:border-amber-400 transition active:scale-95";
+                btn.onclick = () => addItemToBasket(item);
+
+                btn.innerHTML = `
+                    <span class="text-xl">${item.emoji}</span>
+                    <span class="font-jua text-[11px] text-slate-700 leading-tight mt-0.5">${item.name}</span>
+                    <span class="text-[10px] text-emerald-600 font-bold">${item.price.toLocaleString()}원</span>
+                `;
+                grid.appendChild(btn);
+            });
+        }
+
+        function addItemToBasket(item) {
+            playSound('scan');
+            currentBasket.push(item);
+            renderBasketUI();
+        }
+
+        function clearBasket() {
+            currentBasket = [];
+            renderBasketUI();
+        }
+
+        function renderBasketUI() {
+            const list = document.getElementById('basket-items-list');
+            list.innerHTML = "";
+
+            if (currentBasket.length === 0) {
+                list.innerHTML = `<span class="text-[11px] text-slate-400">바구니가 비어 있습니다.</span>`;
+            } else {
+                let sum = 0;
+                currentBasket.forEach(item => {
+                    sum += item.price;
+                    const tag = document.createElement('span');
+                    tag.className = "text-[11px] px-2 py-0.5 bg-white text-slate-700 rounded-md border border-amber-300 font-jua shadow-sm shrink-0 flex items-center gap-1";
+                    tag.innerHTML = `${item.emoji} ${item.name}`;
+                    list.appendChild(tag);
+                });
+                currentTargetSum = sum;
+            }
+        }
+
+        /* ===================================================================
+           NUMPAD & MATH CHECKOUT
+        =================================================================== */
+        function pressPOSNum(num) {
+            initAudio();
+            if (posInput.length < 8) {
+                posInput += num;
+                updatePOSDisplay();
+            }
+        }
+
+        function clearPOSNum() {
+            posInput = "";
+            updatePOSDisplay();
+        }
+
+        function deletePOSNum() {
+            posInput = posInput.slice(0, -1);
+            updatePOSDisplay();
+        }
+
+        function updatePOSDisplay() {
+            document.getElementById('pos-input-display').innerText = posInput === "" ? "0" : parseInt(posInput, 10).toLocaleString();
+        }
+
+        function submitPOSAnswer() {
+            if (posInput === "") return;
+
+            const userVal = parseInt(posInput, 10);
+
+            if (userVal === currentTargetSum && currentTargetSum > 0) {
+                // Correct Math Checkout
+                playSound('cash');
+                gameState.combo++;
+                gameState.todayCustomersServed++;
+
+                let bonusMult = 1.0 + (gameState.combo * 0.05);
+                if (gameState.items.scanner) bonusMult += 0.2;
+
+                const earned = Math.floor(currentTargetSum * bonusMult);
+                gameState.cash += earned;
+                gameState.todayEarnings += earned;
+
+                showFloatingText(`+${earned.toLocaleString()}원 정산 성공!`, "text-emerald-600");
+
+                closeTransactionModal();
+                updateUI();
+                generateNextCustomer();
+            } else {
+                // Wrong Calculation
+                playSound('wrong');
+                gameState.combo = 0;
+                showFloatingText("덧셈 답이 틀렸습니다!", "text-red-500");
+                posInput = "";
+                updatePOSDisplay();
+                updateUI();
+            }
+        }
+
+        /* ===================================================================
+           DAY END SUMMARY & UPGRADE SHOP
+        =================================================================== */
+        function triggerDayEndSummary() {
+            document.getElementById('summary-day-title').innerText = `🎉 ${gameState.day}일차 영업 완료!`;
+            document.getElementById('summary-today-sales').innerText = `${gameState.todayEarnings.toLocaleString()} 원`;
+            document.getElementById('summary-today-customers').innerText = `${gameState.todayCustomersServed} 명`;
+            document.getElementById('summary-total-cash').innerText = `${gameState.cash.toLocaleString()} 원`;
+
+            document.getElementById('day-summary-modal').classList.remove('hidden');
+        }
+
+        function startNextDay() {
+            gameState.day++;
+            document.getElementById('day-summary-modal').classList.add('hidden');
+            startNewDaySession();
+        }
+
+        function hireStaff(type) {
+            const costs = { restock: 5000, cashier: 15000, cleaner: 30000 };
+            const cost = Math.floor(costs[type] * Math.pow(1.5, gameState.staff[type]));
+
+            if (gameState.cash >= cost) {
+                gameState.cash -= cost;
+                gameState.staff[type]++;
+                updateUI();
+            }
+        }
+
+        function buyItem(type) {
+            const costs = { scanner: 10000 };
+            if (gameState.cash >= costs[type] && !gameState.items[type]) {
+                gameState.cash -= costs[type];
+                gameState.items[type] = true;
+
+                const btn = document.getElementById(`btn-modal-${type}`);
+                btn.innerText = "보유 중";
+                btn.className = "px-3 py-1 bg-emerald-600 font-jua text-xs text-white rounded-lg cursor-default";
+                btn.onclick = null;
+
+                updateUI();
+            }
+        }
+
+        /* ===================================================================
+           TROUBLE & PASSIVE AUTO REVENUE
+        =================================================================== */
+        function triggerTroubleEvent() {
+            activeTrouble = true;
+            document.getElementById('trouble-banner').classList.remove('hidden');
+
+            if (gameState.staff.cleaner > 0) {
+                setTimeout(() => resolveTrouble('staff'), 1200);
+            }
+        }
+
+        function resolveTrouble(method) {
+            document.getElementById('trouble-banner').classList.add('hidden');
+            activeTrouble = false;
+
+            if (method === 'clean') {
+                showFloatingText("🧹 깨끗이 청소 완료!", "text-amber-500");
+                gameState.cash += 1500;
+            } else {
+                showFloatingText("🤖 알바 자동 대처!", "text-blue-500");
+            }
+            updateUI();
+        }
+
+        function startPassiveEngine() {
+            setInterval(() => {
+                const cashierIncome = gameState.staff.cashier * 800;
+                const ownerBonus = (gameState.rankIndex === 3) ? 3000 : 0; // 사장 직급 자동 수입
+                const total = cashierIncome + ownerBonus;
+
+                if (total > 0 && !document.getElementById('game-screen').classList.contains('hidden')) {
+                    gameState.cash += total;
+                    updateUI();
+                }
+            }, 1000);
+        }
+
+        /* ===================================================================
+           UI UPDATER
+        =================================================================== */
+        function updateUI() {
+            const ranks = [
+                "아르바이트 (1~5일차)",
+                "정직원 (6~10일차)",
+                "매니저 (11~15일차)",
+                "편의점 사장 (16일차~)"
+            ];
+
+            document.getElementById('header-char-name').innerText = gameState.charName;
+            document.getElementById('header-store-name').innerText = gameState.storeName;
+            document.getElementById('cash-display').innerText = `${gameState.cash.toLocaleString()} 원`;
+            document.getElementById('day-display').innerText = `${gameState.day}일차`;
+
+            document.getElementById('rank-badge').innerText = ranks[gameState.rankIndex];
+            document.getElementById('customer-count-display').innerText = `${gameState.todayCustomersServed} / ${gameState.targetCustomersToday} 명`;
+            
+            const pct = Math.min(100, Math.floor((gameState.todayCustomersServed / gameState.targetCustomersToday) * 100));
+            document.getElementById('customer-progress-bar').style.width = `${pct}%`;
+
+            ['restock', 'cashier', 'cleaner'].forEach(type => {
+                const lvl = gameState.staff[type];
+                const costs = { restock: 5000, cashier: 15000, cleaner: 30000 };
+                const cost = Math.floor(costs[type] * Math.pow(1.5, lvl));
+
+                const lvlEl = document.getElementById(`staff-lvl-${type}`);
+                if (lvlEl) lvlEl.innerText = `Lv.${lvl}`;
+
+                const costEl = document.getElementById(`staff-cost-${type}`);
+                if (costEl) costEl.innerText = `${cost.toLocaleString()}원`;
+            });
+        }
+
+        function showFloatingText(text, colorClass) {
+            const container = document.getElementById('game-screen');
+            const el = document.createElement('div');
+            el.className = `floating-text text-lg font-jua ${colorClass}`;
+            el.innerText = text;
+
+            el.style.left = `50%`;
+            el.style.top = `35%`;
+
+            container.appendChild(el);
+            setTimeout(() => el.remove(), 800);
+        }
+    </script>
+</body>
+</html>
